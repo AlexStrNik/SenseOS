@@ -1,21 +1,38 @@
-@Observable
-class SimpleSenseElement: SenseElement {
+//
+//  SimpleSenseElement.swift
+//  SenseOS
+//
+//  Created by Aleksandr Strizhnev on 14.01.2025.
+//
+
+import ApplicationServices
+
+class SimpleSenseElement: ObservableObject, SenseElement {
     var axElement: AXUIElement?
-    var focused: Bool = false
-    var frame: CGRect = .zero
+    
+    @Published var focused: Bool = false
+    var frame: CGRect {
+        axElement!.frame
+    }
     
     init(axElement: AXUIElement) {
         self.axElement = axElement
-        self.frame = axElement.frame
     }
     
     func handleFocusMove(direction: MoveFocusDirection) -> Bool {
         return false
     }
     
+    func handleFocusNext() -> Bool {
+        return false
+    }
+    
+    func handleFocusPrev() -> Bool {
+        return false
+    }
+    
     func handleFocus() {
         self.focused = true
-        print("Focused \(axElement?.description)")
     }
     
     func handleUnfocus() {
@@ -32,5 +49,13 @@ class SimpleSenseElement: SenseElement {
         guard let axElement else { return }
         
         AXUIElementPerformAction(axElement, kAXPressAction as CFString)
+    }
+    
+    func handleScroll(x: CGFloat, y: CGFloat) {
+        
+    }
+    
+    func handleAxEvent(event: CFString) {
+        
     }
 }

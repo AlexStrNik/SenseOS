@@ -1,35 +1,123 @@
-@Observable
-class RootSenseElement: SenseElement {
+//
+//  RootSenseElement.swift
+//  SenseOS
+//
+//  Created by Aleksandr Strizhnev on 14.01.2025.
+//
+
+import ApplicationServices
+
+func rootObserverCallback(
+    _ observer: AXObserver,
+    _ element: AXUIElement,
+    _ event: CFString,
+    _ refcon: UnsafeMutableRawPointer?
+) {
+    guard let refcon else {
+        return
+    }
+    let element = Unmanaged<AnyObject>.fromOpaque(refcon).takeUnretainedValue() as! SenseElement
+    
+    RootSenseElement.current?.objectWillChange.send()
+    element.handleAxEvent(event: event)
+}
+
+class RootSenseElement: ObservableObject, SenseElement {
     var axElement: AXUIElement?
-    var focused: Bool = false
+    
+    @Published var focused: Bool = false
     var frame: CGRect = .zero
     
-    var child: (any SenseElement)?
+    static var current: RootSenseElement?
     
-    init(child: (any SenseElement)?) {
+    private var observer: AXObserver?
+    
+    @Published var focusedWindow: (any SenseElement)?
+    
+    init(processIdentifier: pid_t, child: (any SenseElement)?) {
         self.frame = .zero
-        self.child = child
+        self.focusedWindow = child
+        
+        if processIdentifier == -1 {
+            return
+        }
+        
+        RootSenseElement.current = self
+        
+        AXObserverCreate(
+            processIdentifier,
+            rootObserverCallback,
+            &self.observer
+        )
+        
+        guard let observer else {
+            return
+        }
+        CFRunLoopAddSource(
+            CFRunLoopGetCurrent(),
+            AXObserverGetRunLoopSource(observer),
+            .defaultMode
+        );
     }
     
     func handleFocusMove(direction: MoveFocusDirection) -> Bool {
-        return child?.handleFocusMove(direction: direction) ?? true
+        self.objectWillChange.send()
+        return focusedWindow?.handleFocusMove(direction: direction) ?? true
+    }
+    
+    func handleFocusNext() -> Bool {
+        self.objectWillChange.send()
+        return focusedWindow?.handleFocusNext() ?? true
+    }
+    
+    func handleFocusPrev() -> Bool {
+        self.objectWillChange.send()
+        return focusedWindow?.handleFocusPrev() ?? true
     }
     
     func handleFocus() {
-        self.child?.handleFocus()
+        self.objectWillChange.send()
+        self.focusedWindow?.handleFocus()
     }
     
     func handleUnfocus() {
-        self.child?.handleUnfocus()
+        self.objectWillChange.send()
+        self.focusedWindow?.handleUnfocus()
     }
     
     func handlePress() {
-        self.child?.handlePress()
+        self.focusedWindow?.handlePress()
     }
     
     var debugElements: [any SenseElement] {
         [
-            child
+            focusedWindow
         ].compactMap { $0 }.flatMap { $0.debugElements }
+    }
+    
+    func handleAxEvent(event: CFString) {
+        
+    }
+    
+    func addAxCallback(
+        for event: CFString,
+        element: AXUIElement,
+        target: (any SenseElement)
+    ) {
+        guard let observer else {
+            return
+        }
+        let refcon = UnsafeMutableRawPointer(Unmanaged.passRetained(target as AnyObject).toOpaque())
+        
+        AXObserverAddNotification(
+            observer,
+            element,
+            event,
+            refcon
+        )
+    }
+    
+    func handleScroll(x: CGFloat, y: CGFloat) {
+        self.focusedWindow?.handleScroll(x: x, y: y)
     }
 }
