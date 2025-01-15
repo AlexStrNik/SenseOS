@@ -33,10 +33,24 @@ class SimpleSenseElement: ObservableObject, SenseElement {
     
     func handleFocus() {
         self.focused = true
+        guard let axElement else { return }
+        
+        AXUIElementSetAttributeValue(
+            axElement,
+            kAXFocusedAttribute as CFString,
+            true as CFBoolean
+        )
     }
     
     func handleUnfocus() {
         self.focused = false
+        guard let axElement else { return }
+        
+        AXUIElementSetAttributeValue(
+            axElement,
+            kAXFocusedAttribute as CFString,
+            false as CFBoolean
+        )
     }
     
     var debugElements: [any SenseElement] {

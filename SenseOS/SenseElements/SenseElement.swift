@@ -43,6 +43,26 @@ func visitChild(_ element: AXUIElement) -> (any SenseElement)? {
             axElement: element,
             elements: visitCollection(element)
         )
+    case "AXSheet":
+        return GroupSenseElement(
+            axElement: element,
+            elements: visitCollection(element)
+        )
+    case "AXRadioGroup":
+        return GroupSenseElement(
+            axElement: element,
+            elements: visitCollection(element)
+        )
+    case "AXOpaqueProviderGroup":
+        return GroupSenseElement(
+            axElement: element,
+            elements: visitCollection(element)
+        )
+    case "AXWindow":
+        return GroupSenseElement(
+            axElement: element,
+            elements: visitCollection(element)
+        )
     case "AXList":
         return GroupSenseElement(
             axElement: element,
@@ -67,7 +87,16 @@ func visitChild(_ element: AXUIElement) -> (any SenseElement)? {
         return RowSenseElement(
             axElement: element
         )
+    case "AXToolbar":
+        return GroupSenseElement(
+            axElement: element,
+            elements: visitCollection(element)
+        )
     case "AXRadioButton":
+        return SimpleSenseElement(
+            axElement: element
+        )
+    case "AXMenuButton":
         return SimpleSenseElement(
             axElement: element
         )
@@ -82,6 +111,10 @@ func visitChild(_ element: AXUIElement) -> (any SenseElement)? {
         )
     case "AXCheckBox":
         return SimpleSenseElement(
+            axElement: element
+        )
+    case "AXSlider":
+        return SliderSenseElement(
             axElement: element
         )
     default:

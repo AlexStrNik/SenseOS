@@ -18,11 +18,10 @@ enum MoveFocusDirection {
 
 class SenseOSApp: NSObject, NSApplicationDelegate {
     private var debugWindow: NSWindow?
+    private var frontMostObserver: NSKeyValueObservation?
+    private var connectedProcess: pid_t?
     
-    @Published var rootElement: RootSenseElement = RootSenseElement(
-        processIdentifier: -1,
-        child: nil
-    )
+    @Published var rootElement: RootSenseElement = RootSenseElement()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         requestAccesibility()
@@ -43,6 +42,10 @@ class SenseOSApp: NSObject, NSApplicationDelegate {
             )
         )
         debugWindow?.orderFrontRegardless()
+        
+        frontMostObserver = NSWorkspace.shared.observe(\.frontmostApplication, options: [.initial]) { _, _ in
+            self.connectFrontmostWindow()
+        }
     }
     
     @objc func connectController() {
@@ -98,23 +101,16 @@ class SenseOSApp: NSObject, NSApplicationDelegate {
     
     func connectFrontmostWindow() {
         let processIdentifier = NSWorkspace.shared.frontmostApplication?.processIdentifier
-        guard let processIdentifier else {
+        guard let processIdentifier, processIdentifier != connectedProcess else {
             return
         }
+        connectedProcess = processIdentifier
         
         let appElement = AXUIElementCreateApplication(processIdentifier)
-        let windowElement = appElement.attribute(kAXFocusedWindowAttribute) as! AXUIElement
         
-        let contentElement = windowElement.children?.first
-        guard let contentElement else {
-            return
-        }
-        
-        rootElement = RootSenseElement(
-            processIdentifier: processIdentifier,
-            child: nil
-        )
-        rootElement.focusedWindow = visitChild(contentElement)
+        rootElement.processIdentifier = processIdentifier
+        rootElement.appElement = appElement
+        rootElement.connectFocusedWindow()
         rootElement.handleFocus()
     }
     

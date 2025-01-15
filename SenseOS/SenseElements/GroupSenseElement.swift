@@ -5,7 +5,17 @@
 //  Created by Aleksandr Strizhnev on 14.01.2025.
 //
 
+import CoreGraphics
 import ApplicationServices
+
+func distance(
+    a: CGRect,
+    b: CGRect,
+    xScale: CGFloat = 1,
+    yScale: CGFloat = 1
+) -> CGFloat {
+    return (pow(a.midX - b.midX, 2) * xScale + pow(a.midY - b.midY, 2) * yScale).squareRoot()
+}
 
 class GroupSenseElement: ObservableObject, SenseElement {
     var axElement: AXUIElement?
@@ -98,6 +108,36 @@ class GroupSenseElement: ObservableObject, SenseElement {
         return true
     }
     
+    private func closestWithPredicate(
+        current: SenseElement,
+        direction: MoveFocusDirection,
+        _ predicate: (Int) -> Bool
+    ) -> Int? {
+        let (xScale, yScale) = switch (direction) {
+        case .left, .right:
+            (1.0, 500.0)
+        case .up, .down:
+            (500.0, 1.0)
+        }
+        
+        return Array(
+            elements.indices.filter(predicate)
+        ).sorted {
+            distance(
+                a: elements[$0].frame,
+                b: current.frame,
+                xScale: xScale,
+                yScale: yScale
+            ) < distance(
+                a: elements[$1].frame,
+                b: current.frame,
+                xScale: xScale,
+                yScale: yScale
+            )
+        }
+        .first
+    }
+    
     private func getNextFocusableElement(
         from index: Int,
         in direction: MoveFocusDirection
@@ -106,54 +146,53 @@ class GroupSenseElement: ObservableObject, SenseElement {
         
         switch direction {
         case .right:
-            if index + 1 < self.elements.count && self.elements[index + 1].frame.midX > element.frame.midX {
-                return index + 1
-            }
-            
-            return self.elements.firstIndex {
-                $0.frame.midX > element.frame.midX
+            return closestWithPredicate(current: element, direction: direction) {
+                elements[$0].frame.midX > element.frame.midX
             }
         case .left:
-            if index - 1 > 0 && self.elements[index - 1].frame.midX < element.frame.midX {
-                return index - 1
-            }
-            
-            return self.elements.lastIndex {
-                $0.frame.midX < element.frame.midX
+            return closestWithPredicate(current: element, direction: direction) {
+                elements[$0].frame.midX < element.frame.midX
             }
         case .down:
-            if index + 1 < self.elements.count && self.elements[index + 1].frame.midY > element.frame.midY {
-                return index + 1
-            }
-            
-            return self.elements.firstIndex {
-                $0.frame.midY > element.frame.midY
+            return closestWithPredicate(current: element, direction: direction) {
+                elements[$0].frame.midY > element.frame.midY
             }
         case .up:
-            if index - 1 > 0 && self.elements[index - 1].frame.midY < element.frame.midY {
-                return index - 1
-            }
-            
-            return self.elements.lastIndex {
-                $0.frame.midY < element.frame.midY
+            return closestWithPredicate(current: element, direction: direction) {
+                elements[$0].frame.midY < element.frame.midY
             }
         }
     }
     
     func handleFocus() {
-        self.focused = true
-        
         focusedIndex = focusedIndex ?? 0
         
         guard focusedIndex! < self.elements.count else {
             return
         }
+        self.focused = true
+        if let axElement {   
+            AXUIElementSetAttributeValue(
+                axElement,
+                kAXFocusedAttribute as CFString,
+                true as CFBoolean
+            )
+        }
+        
         self.elements[focusedIndex!].handleFocus()
     }
     
     func handleUnfocus() {
         self.focused = false
         self.elements.forEach { $0.handleUnfocus() }
+        
+        guard let axElement else { return }
+        
+        AXUIElementSetAttributeValue(
+            axElement,
+            kAXFocusedAttribute as CFString,
+            false as CFBoolean
+        )
     }
     
     func handlePress() {
@@ -177,5 +216,6 @@ class GroupSenseElement: ObservableObject, SenseElement {
         
         self.objectWillChange.send()
         self.elements = newElements
+        self.handleFocus()
     }
 }

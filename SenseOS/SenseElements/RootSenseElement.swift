@@ -33,31 +33,55 @@ class RootSenseElement: ObservableObject, SenseElement {
     private var observer: AXObserver?
     
     @Published var focusedWindow: (any SenseElement)?
+    var processIdentifier: pid_t? {
+        willSet {
+            guard let processIdentifier else {
+                return
+            }
+
+            self.observer = nil
+            AXObserverCreate(
+                processIdentifier,
+                rootObserverCallback,
+                &self.observer
+            )
+            
+            guard let observer else {
+                return
+            }
+            CFRunLoopAddSource(
+                CFRunLoopGetCurrent(),
+                AXObserverGetRunLoopSource(observer),
+                .defaultMode
+            );
+        }
+    }
+    var appElement: AXUIElement? {
+        willSet {
+            guard let appElement else {
+                return
+            }
+            
+            addAxCallback(
+                for: "kAXFocusedWindowChangedNotification" as CFString,
+                element: appElement,
+                target: self
+            )
+            addAxCallback(
+                for: "kAXWindowCreatedNotification" as CFString,
+                element: appElement,
+                target: self
+            )
+            addAxCallback(
+                for: "kAXMainWindowChangedNotification" as CFString,
+                element: appElement,
+                target: self
+            )
+        }
+    }
     
-    init(processIdentifier: pid_t, child: (any SenseElement)?) {
-        self.frame = .zero
-        self.focusedWindow = child
-        
-        if processIdentifier == -1 {
-            return
-        }
-        
+    init() {
         RootSenseElement.current = self
-        
-        AXObserverCreate(
-            processIdentifier,
-            rootObserverCallback,
-            &self.observer
-        )
-        
-        guard let observer else {
-            return
-        }
-        CFRunLoopAddSource(
-            CFRunLoopGetCurrent(),
-            AXObserverGetRunLoopSource(observer),
-            .defaultMode
-        );
     }
     
     func handleFocusMove(direction: MoveFocusDirection) -> Bool {
@@ -96,7 +120,24 @@ class RootSenseElement: ObservableObject, SenseElement {
     }
     
     func handleAxEvent(event: CFString) {
-        
+        print("handleAxEvent \(event)")
+        self.objectWillChange.send()
+        connectFocusedWindow()
+    }
+    
+    func connectFocusedWindow() {
+        guard let appElement else {
+            return
+        }
+        guard let windowElement = appElement.attribute(kAXFocusedWindowAttribute) else {
+            return
+        }
+        addAxCallback(
+            for: "kAXUIElementDestroyedNotification" as CFString,
+            element: windowElement as! AXUIElement,
+            target: self
+        )
+        focusedWindow = visitChild(windowElement as! AXUIElement)
     }
     
     func addAxCallback(

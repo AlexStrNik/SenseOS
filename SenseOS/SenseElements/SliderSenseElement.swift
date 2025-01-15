@@ -1,32 +1,18 @@
 //
-//  ScrollSenseElement.swift
+//  SliderSenseElement.swift
 //  SenseOS
 //
-//  Created by Aleksandr Strizhnev on 14.01.2025.
+//  Created by Aleksandr Strizhnev on 15.01.2025.
 //
 
 import ApplicationServices
 
-class ScrollSenseElement: GroupSenseElement {
-    private var axBar: AXUIElement?
+class SliderSenseElement: SimpleSenseElement {
     private var timer: Timer?
     private var speed: CGFloat = 0
     
-    var isVertical: Bool {
-        axElement?.attribute("AXVerticalScrollBar") != nil
-    }
-    
-    override init(axElement: AXUIElement, elements: [any SenseElement]) {
-        super.init(axElement: axElement, elements: elements)
-        self.axBar = axElement.children!.first { $0.role == kAXScrollBarRole }
-    }
-    
     override func handleScroll(x: CGFloat, y: CGFloat) {
-        if isVertical {
-            setScrollSpeed(y)
-        } else {
-            setScrollSpeed(x)
-        }
+        setScrollSpeed(x)
     }
     
     private func setScrollSpeed(_ speed: CGFloat) {
@@ -47,18 +33,18 @@ class ScrollSenseElement: GroupSenseElement {
     }
     
     @objc func repeatScroll() {
-        guard let axBar else { return }
-
-        guard let oldValue = axBar.attribute("AXValue"), let oldValue = oldValue as? CGFloat else {
+        guard let oldValue = axElement!.attribute("AXValue"), let oldValue = oldValue as? CGFloat else {
             return
         }
 
-        let value = oldValue - speed * 0.01 as AnyObject
+        let value = oldValue + speed * 0.01 as AnyObject
         
         AXUIElementSetAttributeValue(
-            axBar,
+            axElement!,
             "AXValue" as CFString,
             value
         )
+        
+        print("repeatScroll")
     }
 }

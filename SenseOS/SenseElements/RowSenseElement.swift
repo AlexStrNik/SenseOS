@@ -16,17 +16,8 @@ class RowSenseElement: SimpleSenseElement {
             "AXSelected" as CFString,
             true as CFBoolean
         )
-//        AXUIElementSetAttributeValue(
-//            axElement!,
-//            "AXSelectedRows" as CFString,
-//            selectedCells
-//        )
-//        AXUIElementSetAttributeValue(
-//            axElement!,
-//            "AXSelectedCells" as CFString,
-//            selectedCells
-//        )
         
         AXUIElementPerformAction(axElement!, "AXPickAction" as CFString)
+        AXUIElementPerformAction(axElement!, kAXPressAction as CFString)
     }
 }
